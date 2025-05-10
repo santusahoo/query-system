@@ -137,4 +137,6 @@ if st.session_state.history:
 
 # Footer
 st.markdown("---")
-st.caption("Search Assistant powered by OpenAI and Serper API")
+st.markdown("""
+    Made with ❤️ by Santu
+""")

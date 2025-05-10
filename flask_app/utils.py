@@ -3,52 +3,46 @@ import requests
 import hashlib
 from dotenv import load_dotenv
 from bs4 import BeautifulSoup
-from typing import List, Dict, Any, Optional
+from typing import List, Optional
+from langchain_groq import ChatGroq
+from langchain_community.utilities import DuckDuckGoSearchAPIWrapper
+from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 
 load_dotenv()
 
 SESSION_STORAGE = {}
 
-# Using Serper API for search
-def search_articles(query: str) -> List[Dict[str, str]]:
-    """Search for articles using Serper API"""
-    api_key = os.getenv('SERPER_API_KEY')
-    if not api_key:
-        raise ValueError("SERPER_API_KEY environment variable not set")
+def search_articles(query: str, max_results: int = 5) -> List[str]:
+    """
+    Search for articles using DuckDuckGo and return just the URLs.
 
-    headers = {
-        'X-API-KEY': api_key,
-        'Content-Type': 'application/json'
-    }
+    Args:
+        query: The search query string
+        max_results: Maximum number of results to return (default: 5)
 
-    payload = {
-        'q': query,
-        'gl': 'us',
-        'num': 3,
-    }
-
+    Returns:
+        List of URLs from search results
+    """
     try:
-        response = requests.post(
-            'https://google.serper.dev/search',
-            headers=headers,
-            json=payload
+        # Initialize DuckDuckGo search wrapper directly
+        search_wrapper = DuckDuckGoSearchAPIWrapper(
+            max_results=max_results,
+            region="wt-wt",
+            safesearch="moderate",
+            time="y",
+            backend="api",
         )
-        response.raise_for_status()
 
-        search_results = response.json()
-        organic_results = search_results.get('organic', [])
+        # Get raw search results as list of dictionaries
+        results = search_wrapper.results(f"{query}", max_results=max_results)
 
-        articles = []
-        for result in organic_results:
-            articles.append({
-                'title': result.get('title', ''),
-                'snippet': result.get('snippet', ''),
-                'url': result.get('link', '')
-            })
+        # Extract just the URLs from the results
+        urls = [result.get('link') for result in results if result.get('link')]
 
-        return articles
+        return urls
+
     except Exception as e:
-        print(f"Error in search_articles: {e}")
+        print(f"Error searching with DuckDuckGo: {e}")
         return []
 
 def fetch_article_content(url: str) -> str:
@@ -71,17 +65,13 @@ def fetch_article_content(url: str) -> str:
         print(f"Error fetching {url}: {e}")
         return ''
 
-def concatenate_content(articles: List[Dict[str, str]], max_length: int = 8000) -> str:
-    """Concatenate content from multiple articles up to max_length"""
+def concatenate_content(urls: List[str], max_length: int = 8000) -> str:
+    """Concatenate content from multiple URLs up to max_length"""
     full_text = []
     current_length = 0
 
-    for article in articles:
-        url = article.get('url')
-        print("\n")
-        print(f"Processing URL: {url}")
-        if not url:
-            continue
+    for url in urls:
+        print(f"\nProcessing URL: {url}")
 
         article_text = fetch_article_content(url)
         if not article_text:
@@ -101,52 +91,48 @@ def concatenate_content(articles: List[Dict[str, str]], max_length: int = 8000) 
 
     return '\n'.join(full_text)
 
-
 def generate_answer(content: str, query: str, session_id: str = None) -> str:
-    """Generate answer using OpenAI API with context from previous interactions"""
+    """Generate answer using LLM API with context from previous interactions"""
     try:
-        # Create OpenAI client properly
-        from openai import OpenAI
-        client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+        api_key = os.getenv('GROQ_API_KEY')
+        llm = ChatGroq(api_key=api_key, model="gemma2-9b-it", temperature=0.8)
 
-        messages = []
+        # Convert session messages to LangChain format if they exist
+        langchain_messages = []
 
         # Add context from session if available
         if session_id and session_id in SESSION_STORAGE:
-            messages = SESSION_STORAGE[session_id]['messages']
+            for msg in SESSION_STORAGE[session_id]['messages']:
+                if msg['role'] == 'system':
+                    langchain_messages.append(SystemMessage(content=msg['content']))
+                elif msg['role'] == 'user':
+                    langchain_messages.append(HumanMessage(content=msg['content']))
+                elif msg['role'] == 'assistant':
+                    langchain_messages.append(AIMessage(content=msg['content']))
 
         # If no session or new session, start with system message
-        if not messages:
-            messages = [{
-                'role': 'system',
-                'content': 'You are a helpful assistant that provides information based on the given context.'
-            }]
+        if not langchain_messages:
+            langchain_messages = [SystemMessage(content="You are a helpful assistant that provides information based on the given context.")]
 
         # Add user query with context
-        messages.append({
-            'role': 'user',
-            'content': f"Context:\n{content}\n\nUser question: {query}\n\nPlease provide a comprehensive answer based on the context provided."
-        })
+        user_message = f"Context:\n{content[:6000]}\n\nUser question: {query}\n\nPlease provide a comprehensive answer based on the context provided."
+        langchain_messages.append(HumanMessage(content=user_message))
 
-        # Limit context length to avoid token limits
-        if sum(len(msg['content']) for msg in messages) > 16000:
-            # Keep system message and at most 2 previous exchanges plus current query
-            if len(messages) > 4:
-                messages = [messages[0]] + messages[-4:]
-
-        response = client.chat.completions.create(
-            model='gpt-3.5-turbo',
-            messages=messages,
-            temperature=0.6,
-            max_tokens=1000
-        )
-
-        answer = response.choices[0].message.content.strip()
+        # Invoke the model
+        response = llm.invoke(langchain_messages)
+        answer = response.content
 
         # Store in session
         if session_id:
             if session_id not in SESSION_STORAGE:
                 SESSION_STORAGE[session_id] = {'messages': []}
+
+            # Convert to our simple format for storage
+            if not SESSION_STORAGE[session_id]['messages']:
+                SESSION_STORAGE[session_id]['messages'].append({
+                    'role': 'system',
+                    'content': "You are a helpful assistant that provides information based on the given context."
+                })
 
             # Add the query and response to session
             SESSION_STORAGE[session_id]['messages'].append({
@@ -160,11 +146,14 @@ def generate_answer(content: str, query: str, session_id: str = None) -> str:
 
             # Keep only last 5 exchanges (10 messages) to manage context length
             if len(SESSION_STORAGE[session_id]['messages']) > 10:
-                SESSION_STORAGE[session_id]['messages'] = SESSION_STORAGE[session_id]['messages'][-10:]
+                # Keep system message and recent exchanges
+                SESSION_STORAGE[session_id]['messages'] = [SESSION_STORAGE[session_id]['messages'][0]] + SESSION_STORAGE[session_id]['messages'][-9:]
 
         return answer
     except Exception as e:
+        import traceback
         print(f"Error in generate_answer: {e}")
+        print(traceback.format_exc())
         return f"Sorry, I encountered an error generating your answer: {str(e)}"
 
 def get_or_create_session(session_id: Optional[str] = None) -> str:

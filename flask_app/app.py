@@ -1,5 +1,11 @@
-from flask import Flask, request, jsonify
+import sys
+import os
 from typing import Dict, Any
+from flask import Flask, request, jsonify
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+# Load environment variables
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -15,7 +21,7 @@ def query() -> Dict[str, Any]:
         # Extract payload
         data = request.get_json()
         if not data:
-            return jsonify({"error": "No JSON data provided"}), 400
+            return jsonify({"error": "No data provided"}), 400
 
         user_query = data.get('query')
         session_id = data.get('session_id')
@@ -27,23 +33,23 @@ def query() -> Dict[str, Any]:
         session_id = get_or_create_session(session_id)
 
         # Step 1: Search for articles
-        articles = search_articles(user_query)
+        urls = search_articles(user_query)
 
-        # Step 2: Concatenate content
-        content = concatenate_content(articles)
+        # Step 2: Fetch and concatenate content from articles
+        all_content = concatenate_content(urls)
 
         # Step 3: Generate answer using LLM
-        answer = generate_answer(content, user_query, session_id)
+        answer = generate_answer(all_content, user_query, session_id)
 
         # Return JSON response
         return jsonify({
             "answer": answer,
             "session_id": session_id,
-            "sources_count": len(articles)
+            "sources_count": len(urls)
         })
 
     except Exception as e:
         return jsonify({"error": f"Server error: {str(e)}"}), 500
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5001, debug=False, use_reloader=False)
+    app.run(host='0.0.0.0', port=5001, debug=True)
