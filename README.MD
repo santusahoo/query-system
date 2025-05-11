@@ -1,4 +1,4 @@
-# Web Search Assistant 🔍
+# 🔍 Web Search Assistant
 
 A powerful web search application that retrieves relevant information from the internet and generates comprehensive answers using LLMs (Language Model Models).
 
