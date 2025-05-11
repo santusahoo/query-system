@@ -15,13 +15,6 @@ SESSION_STORAGE = {}
 def search_articles(query: str, max_results: int = 5) -> List[str]:
     """
     Search for articles using DuckDuckGo and return just the URLs.
-
-    Args:
-        query: The search query string
-        max_results: Maximum number of results to return (default: 5)
-
-    Returns:
-        List of URLs from search results
     """
     try:
         # Initialize DuckDuckGo search wrapper directly
@@ -30,7 +23,7 @@ def search_articles(query: str, max_results: int = 5) -> List[str]:
             region="wt-wt",
             safesearch="moderate",
             time="y",
-            backend="api",
+            backend="auto",
         )
 
         # Get raw search results as list of dictionaries
@@ -82,7 +75,7 @@ def concatenate_content(urls: List[str], max_length: int = 8000) -> str:
         # Check if adding this would exceed max length
         if current_length + len(source_text) > max_length:
             remaining = max_length - current_length
-            if remaining > 1000:  # Only add if we can fit a meaningful amount
+            if remaining > 100:  # Only add if we can fit a meaningful amount
                 full_text.append(source_text[:remaining])
             break
 

@@ -1,114 +1,155 @@
+# Web Search Assistant 🔍
 
-# LLM-Based RAG System
+A powerful web search application that retrieves relevant information from the internet and generates comprehensive answers using LLMs (Language Model Models).
 
-## Overview
+## 🌟 Features
 
-This project is designed to create a Retrieval-Augmented Generation (RAG) system using a Large Language Model (LLM). The system integrates with an API to scrape content from the internet and uses an API to serve the LLM-generated answers. A simple front-end interface is provided to interact with the system. 
-Note: ONLY use the packages provided in the requirements.txt file (similar/alternative packages are ok only if they perform similar task/function). 
+- **Real-time web search** via DuckDuckGo API
+- **Contextual AI responses** using Groq's Gemma 2-9B model
+- **Session management** for continuous conversations
+- **User-friendly interface** built with Streamlit
+- **API backend** powered by Flask
+- **Memory management** to maintain conversation context
 
-## Process Overview
+## 🏗️ Architecture
 
-1. **User Input via Streamlit Interface**:
-   - The user interacts with a Streamlit-based front-end where they can input their query.
+The application consists of three main components:
 
-2. **Query Sent to Flask Backend**:
-   - The query entered by the user is sent from the Streamlit interface to a Flask backend via an API call.
+1. **Utility Module** (`utils.py`): Core functionality for web searches, content extraction, and LLM integration
+2. **Flask Backend** (`flask_app/app.py`): REST API to handle requests and responses
+3. **Streamlit Frontend** (`streamlit_app/app.py`): User interface for interacting with the application
 
-3. **Internet Search and Article Scraping**:
-   - The Flask backend searches the internet for the query using a designated API. It retrieves the top relevant articles and scrapes their content, extracting only the useful text (headings and paragraphs).
-
-4. **Content Processing**:
-   - The scraped content is processed to create a coherent input, which is then passed to the LLM for generating a response.
-
-5. **LLM Response Generation**:
-   - The processed content and the user's query are used to generate a contextual answer using the LLM. The LLM is accessed via an API, and the generated response is returned to the Flask backend.
-
-6. **Response Sent Back to Streamlit Interface**:
-   - The Flask backend sends the generated answer back to the Streamlit interface, where it is displayed to the user.
-
-## What we expect?
-We expect you to explore, understand the components and functionality, and demonstrate your ability to work with the provided tools and deliver a solution that meets the requirements. 
-
-Bonus points: If you use Langchain (or similar tools to add memory to the system) to make the chatbot conversational.
-## Prerequisites
-
-- Python 3.8 or above
-
-## Setup Instructions
-
-### Step 1: Clone or download the Repository (if emailed)
-
-```bash
-git clone https://github.com/your-repo-url.git
-cd project_name
+```
+query-system
+├── .env                      # Environment variables
+├── requirements.txt
+├── .gitignore
+├── flask_app/
+│   └── app.py                # Core utility functions
+│   └── utils.py              # Flask API backend
+└── streamlit_app/
+│   └── app.py                # Streamlit frontend interface
 ```
 
-Or download it
+## 🚀 Getting Started
 
-### Step 2: Set Up a Virtual Environment
+### Prerequisites
 
-You can use `venv` or `conda` to create an isolated environment for this project.
+- Python 3.8+
+- [Groq API key](https://console.groq.com/)
+- Internet connection
 
-#### Using `venv`
+### Installation
 
+1. Clone this repository:
 ```bash
-python -m venv env
-source env/bin/activate  # On Windows, use `env\Scripts\activate`
+git clone https://github.com/santusahoo/query-system.git
+cd query-system
 ```
 
-#### Using `conda`
-
-```bash
-conda create --name project_env python=3.8
-conda activate project_env
-```
-
-### Step 3: Install Requirements
-
+2. Install required packages:
 ```bash
 pip install -r requirements.txt
 ```
 
-### Step 4: Set Up Environment Variables
+3. Create a `.env` file with your API keys:
+```
+GROQ_API_KEY=your_groq_api_key_here
+FLASK_API_URL=http://localhost:5001
+```
 
-Create a `.env` file in the root directory and add your API keys in a way it can be accessed in the app.
+### Running the Application
 
-
-### Step 5: Run the Flask Backend
-
-Navigate to the `flask_app` directory and start the Flask server:
-
+1. Start the Flask backend:
 ```bash
 cd flask_app
 python app.py
 ```
 
-### Step 6: Run the Streamlit Frontend
-
-In a new terminal, run the Streamlit app:
-
+2. In a new terminal, start the Streamlit frontend:
 ```bash
 cd streamlit_app
 streamlit run app.py
 ```
 
-### Step 7: Open the Application
+3. Open your browser and navigate to the URL shown in the Streamlit terminal (typically `http://localhost:8501`)
 
-Open your web browser and go to `http://localhost:8501`. You can now interact with the system by entering your query.
+## 🔍 How It Works
 
-## Project Structure
+1. User enters a query in the Streamlit interface
+2. The query is sent to the Flask backend
+3. The backend searches the web using DuckDuckGo
+4. Content is extracted from search results using BeautifulSoup
+5. The LLM generates a comprehensive answer based on the extracted content
+6. The answer is displayed to the user in the Streamlit interface
+7. The conversation is saved in the session for context maintenance
 
-- **flask_app/**: Contains the backend Flask API and utility functions.
-- **streamlit_app/**: Contains the Streamlit front-end code.
-- **.env**: Stores API keys (make sure this file is not included in version control).
-- **requirements.txt**: Lists the project dependencies.
+## 🔧 Configuration
 
-## Task Instructions for Candidates
+You can modify the following parameters in the application:
 
-You are required to complete the following:
+### Search Parameters
+- `max_results`: Number of search results to retrieve (default: 5)
+- `max_length`: Maximum length of concatenated content (default: 8000)
 
-1. Implement the functionality to fetch, process, and generate responses from an LLM using the provided APIs.
-2. Integrate the APIs with the Flask backend.
-3. Display the results in the Streamlit frontend.
+### LLM Parameters
+- `model`: LLM model to use (default: "gemma2-9b-it")
+- `temperature`: Creativity level of responses (default: 0.8)
 
-Good luck!
+## 📝 API Reference
+
+### Endpoint: `/query`
+
+**Method**: POST
+
+**Request Body**:
+```json
+{
+  "query": "Your question here",
+  "session_id": "optional-session-id"
+}
+```
+
+**Response**:
+```json
+{
+  "answer": "Generated answer text",
+  "session_id": "session-id",
+  "sources_count": 5
+}
+```
+
+## 🛠️ Advanced Usage
+
+### Session Management
+
+- Each user session maintains conversation history
+- New sessions can be created using the "New Session" button
+- History can be cleared using the "Clear History" button
+
+### Custom API URL
+
+You can modify the Flask API URL in the Streamlit settings panel, useful for:
+- Connecting to remote backend instances
+- Testing with different backend configurations
+- Development across multiple machines
+
+## 📊 Performance Considerations
+
+- Web content extraction can be time-consuming for complex websites
+- LLM inference speed depends on the Groq API response time
+- Session storage is currently in-memory and not persistent across restarts
+
+
+## 🙏 Acknowledgements
+
+- [DuckDuckGo](https://duckduckgo.com/) for search capabilities
+- [Groq](https://groq.com/) for LLM inference
+- [Streamlit](https://streamlit.io/) for the frontend framework
+- [Flask](https://flask.palletsprojects.com/) for the API backend
+- [BeautifulSoup](https://www.crummy.com/software/BeautifulSoup/) for web scraping
+- [LangChain](https://www.langchain.com/) for LLM integration
+
+---
+
+Made with ❤️ by Santu
